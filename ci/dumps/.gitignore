@@ -1,0 +1,4 @@
+# Committed goldens (*.golden) are tracked; the per-run actual dumps and the
+# result log are transient.
+*.dump
+last_result.txt

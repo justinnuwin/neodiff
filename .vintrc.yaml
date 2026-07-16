@@ -1,0 +1,15 @@
+# vint configuration for the neodiff Vimscript.
+#
+# The plugin is legacy Vimscript (function!, let l:...) sourced by both Vim and
+# Neovim. style_problem is vint's strictest severity; the code is clean at it, so
+# the bar stays there. vimscript_version is the plugin's supported floor, so vint
+# flags anything newer.
+cmdargs:
+  severity: style_problem
+  env:
+    neovim: false
+  vimscript_version: '8.2'
+
+# ProhibitUnusedVariable stays at its default (off): the plugin's script-local
+# functions are reached through <SID> mappings, autocmds, and timer callbacks
+# that vint cannot see, so it would flag them all as unused.

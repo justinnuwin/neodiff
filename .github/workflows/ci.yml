@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Builds the pinned CI image and runs shellcheck, vint, the functional
+      # tests (vim 8.2 + neovim 0.12.4), the shell assertions, and the golden
+      # screen-dump tests. Docker is preinstalled on ubuntu-latest.
+      - name: Run neodiff CI
+        run: ./ci/run.sh

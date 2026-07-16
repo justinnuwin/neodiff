@@ -1,0 +1,25 @@
+" ==============================================================================
+" Minimal vimrc for the neodiff test suite. Loaded with -Nu so no user config
+" (coc/fugitive/etc.) interferes; it only puts the plugin on the runtimepath and
+" loads its eager half (the load guard and config defaults).
+"
+" $NEODIFF_RTP_EXTRA (optional, ':'-separated) is prepended to the runtimepath --
+" the golden-dump tests set it to a vendored fugitive so the real diffs render.
+" ==============================================================================
+
+set nocompatible
+set noswapfile
+set nomore
+set belloff=all
+
+" This file lives at <repo>/ci/vimrc, so two head components up is the repo root.
+let s:repo = expand('<sfile>:p:h:h')
+execute 'set runtimepath^=' . fnameescape(s:repo)
+
+for s:extra in reverse(split($NEODIFF_RTP_EXTRA, ':'))
+    if s:extra !=# ''
+        execute 'set runtimepath^=' . fnameescape(s:extra)
+    endif
+endfor
+
+runtime! plugin/neodiff.vim
