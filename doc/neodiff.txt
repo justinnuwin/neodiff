@@ -1,0 +1,56 @@
+*neodiff.txt*  Vim-powered git show / git diff viewer
+
+==============================================================================
+INTRODUCTION                                                         *neodiff*
+
+The `gshow` / `gdiff` shell aliases open a commit or diff in Vim with one tab
+per changed file, plus a "global" sidebar for navigation. neodiff draws that
+sidebar.
+
+Requires tpope/vim-fugitive (`:Gedit`, `:Gvdiffsplit`).
+
+==============================================================================
+USAGE                                                          *neodiff-usage*
+
+From the shell:
+
+    gshow [rev]              open a commit (default HEAD)
+    gdiff                    open the working-tree diff
+    gdiff --staged           open the staged (index vs HEAD) diff
+    gdiff <rev>              diff a revision against the working tree
+    gdiff <rev1>..<rev2>     diff a range (A...B uses their merge-base)
+    gdiff <rev1> <rev2>      diff two revisions
+
+Inside the view:                                                *neodiff-keys*
+
+    <CR>, o, click           select file (jump to its tab) / toggle a dir
+    gt, gT                   next / previous file (visible-tree order)
+    :q  (in a diff pane)     close the whole tab
+    ]c, [c                   next / previous change (built-in diff)
+    <C-l>, <C-h>             focus pane right / left
+    ?                        echo the key legend
+
+The plugin's public entry point, called by the shell launchers, is:
+
+    neodiff#Setup({title}, {entries}, {refresh})            *neodiff#Setup()*
+
+See the top of plugin/neodiff.vim for the {entries} / {refresh} spec.
+
+==============================================================================
+CONFIGURATION                                                 *neodiff-config*
+
+g:neodiff_width                                              *g:neodiff_width*
+    Sidebar width in columns. Default 52.
+
+g:neodiff_status_symbols                            *g:neodiff_status_symbols*
+    Dict of per-status glyphs shown in the far-left column, keyed by the git
+    status letter (A added, M modified, D deleted, R renamed, C copied).
+    Defaults are Nerd Font octicon diff glyphs. For plain letters: >
+        let g:neodiff_status_symbols = {'A':'A','M':'M','D':'D','R':'R','C':'C'}
+<
+NEODIFF_FIND_COPIES  (environment variable)             *NEODIFF_FIND_COPIES*
+    When set (e.g. `NEODIFF_FIND_COPIES=1 gdiff`), enable copy detection
+    (`-C --find-copies-harder`). Off by default; it is O(files^2) on large
+    trees.
+
+ vim:tw=78:ts=8:ft=help:norl:
