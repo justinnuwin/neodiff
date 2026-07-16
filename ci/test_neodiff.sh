@@ -133,6 +133,25 @@ assert_contains "parse worktree split" "Gvdiffsplit :0:keep.txt" "$_ndf_entries"
 assert_absent "parse worktree no gedit" "Gedit" "$_ndf_entries"
 
 # ------------------------------------------------------------------------------
+# gdiff argument classification: a pathspec must not be taken as a revision.
+# Regression: `gdiff <path>` produced `Gvdiffsplit <path>:<path>`, an unresolvable
+# revision, instead of the working-tree diff of that path. Stub the launcher to
+# capture what gdiff would hand to Vim.
+# ------------------------------------------------------------------------------
+_cap_entries=""
+_neodiff_launch() { _cap_entries="$3"; }
+
+gdiff keep.txt
+assert_contains "gdiff pathspec: working-tree rev" "Gvdiffsplit :0:keep.txt" "$_cap_entries"
+assert_absent "gdiff pathspec: not a revision" "keep.txt:keep.txt" "$_cap_entries"
+
+gdiff -- keep.txt
+assert_contains "gdiff -- pathspec: working-tree rev" "Gvdiffsplit :0:keep.txt" "$_cap_entries"
+
+gdiff HEAD~1 -- keep.txt
+assert_contains "gdiff rev + pathspec: keeps the rev" "Gvdiffsplit HEAD~1:keep.txt" "$_cap_entries"
+
+# ------------------------------------------------------------------------------
 # Syntax check under zsh (the module is sourced by zsh in real use).
 # ------------------------------------------------------------------------------
 if command -v zsh >/dev/null 2>&1; then

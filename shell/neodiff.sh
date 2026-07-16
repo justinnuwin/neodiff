@@ -258,17 +258,25 @@ gdiff() {
     local toplevel
     toplevel=$(git rev-parse --show-toplevel)
 
-    # Parse args: --staged/--cached compares the index to HEAD; otherwise the
-    # non-flag args are revisions. Other flags (e.g. -w) still pass through to git
-    # for file selection and stats but do not change the diff wiring.
-    local staged=0 rev_count=0 rev1="" rev2="" arg
+    # Parse args: --staged/--cached compares the index to HEAD; otherwise a
+    # non-flag arg is a revision only if it is a range or resolves as one --
+    # anything else (and anything after a `--`) is a pathspec that limits which
+    # files show but leaves the diff wiring alone. Without this test a pathspec
+    # like `gdiff src/foo.c` would be taken as the left revision, producing a
+    # broken `Gvdiffsplit src/foo.c:src/foo.c`. Other flags (e.g. -w) still pass
+    # through to git for file selection but do not change the wiring.
+    local staged=0 rev_count=0 rev1="" rev2="" arg paths_only=0
     for arg in "$@"; do
         case "$arg" in
             --staged|--cached) staged=1 ;;
-            --) ;;
+            --) paths_only=1 ;;
             -*) ;;
-            *) rev_count=$((rev_count + 1))
-               if [ "$rev_count" -eq 1 ]; then rev1="$arg"; elif [ "$rev_count" -eq 2 ]; then rev2="$arg"; fi ;;
+            *) if [ "$paths_only" -eq 0 ] \
+                   && { [ "$arg" != "${arg#*..}" ] \
+                        || git rev-parse --verify --quiet "$arg" >/dev/null 2>&1; }; then
+                   rev_count=$((rev_count + 1))
+                   if [ "$rev_count" -eq 1 ]; then rev1="$arg"; elif [ "$rev_count" -eq 2 ]; then rev2="$arg"; fi
+               fi ;;
         esac
     done
 

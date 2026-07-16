@@ -436,6 +436,20 @@ function! s:PrepareTab(id) abort
     call s:OpenSidebar()
 endfunction
 
+" Drop fugitive's blame maps (<CR> and double-click, both bound to :Git blame) in
+" the current fugitive diff buffer. Blame is out of scope for now; without this
+" <CR> would replace a diff pane with the blame view. Fugitive re-applies these
+" maps every time the buffer is entered, so this runs from a BufEnter autocmd
+" (registered after fugitive's, so it wins) rather than once at setup. Guarded to
+" managed tabs so fugitive buffers outside a neodiff session are left alone.
+function! s:DisableBlame() abort
+    if !exists('t:neodiff_id')
+        return
+    endif
+    silent! nunmap <buffer> <CR>
+    silent! nunmap <buffer> <2-LeftMouse>
+endfunction
+
 " Escape '%' so it is not interpreted as a tabline field (it renders literally).
 function! s:EscapePercent(text) abort
     return substitute(a:text, '%', '%%', 'g')
@@ -652,6 +666,9 @@ function! neodiff#Setup(title, entries, refresh) abort
         autocmd!
         autocmd TabEnter * call s:EnsureSidebar()
         autocmd QuitPre * call s:OnQuitPre()
+        " Strip fugitive's blame maps whenever a fugitive diff buffer is entered
+        " (fugitive re-adds them on entry, so a one-shot unmap does not stick).
+        autocmd BufEnter fugitive://* call s:DisableBlame()
         " Rebalance the diff panes when the terminal/window size changes.
         autocmd VimResized * wincmd =
         " For working-tree diffs, re-derive the change stats whenever a buffer is

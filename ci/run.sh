@@ -73,6 +73,17 @@ if [ -n "${NEODIFF_IN_CONTAINER:-}" ]; then
         bash ci/test_neodiff.sh
     }
 
+    # Fugitive-dependent functional checks: render a real diff view on the
+    # fixture and assert on state the fugitive-free suite cannot reach.
+    test_integration() {
+        rm -rf /tmp/nd-fixture
+        if ! bash ci/mkrepo.sh /tmp/nd-fixture >/dev/null 2>&1; then
+            echo 'fixture repo build failed'
+            return 1
+        fi
+        NEODIFF_FIXTURE=/tmp/nd-fixture nvim -Nu ci/vimrc --headless -S ci/integration.vim
+    }
+
     # Golden screen dumps: build the fixture at a fixed path (so nothing on
     # screen varies run to run) and drive the outer Vim under a pty via `script`,
     # since term_start needs a terminal.
@@ -98,6 +109,7 @@ if [ -n "${NEODIFF_IN_CONTAINER:-}" ]; then
     step 'functional (vim 8.2)' test_functional_vim
     step 'functional (nvim 0.12.4)' test_functional_nvim
     step 'shell assertions' test_shell
+    step 'integration (fugitive)' test_integration
     step 'screendump goldens' test_screendump
 
     printf '\n'
