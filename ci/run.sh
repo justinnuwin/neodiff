@@ -84,6 +84,11 @@ if [ -n "${NEODIFF_IN_CONTAINER:-}" ]; then
         NEODIFF_FIXTURE=/tmp/nd-fixture nvim -Nu ci/vimrc --headless -S ci/integration.vim
     }
 
+    # Symbol search collects tags via ctags, so it also needs the container.
+    test_symbols() {
+        nvim -Nu ci/vimrc --headless -S ci/test_symbols.vim
+    }
+
     # Golden screen dumps: build the fixture at a fixed path (so nothing on
     # screen varies run to run) and drive the outer Vim under a pty via `script`,
     # since term_start needs a terminal.
@@ -110,6 +115,7 @@ if [ -n "${NEODIFF_IN_CONTAINER:-}" ]; then
     step 'functional (nvim 0.12.4)' test_functional_nvim
     step 'shell assertions' test_shell
     step 'integration (fugitive)' test_integration
+    step 'symbol search (ctags)' test_symbols
     step 'screendump goldens' test_screendump
 
     printf '\n'

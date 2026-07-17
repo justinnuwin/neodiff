@@ -234,7 +234,8 @@ sides. The older side is always on the left.
 ## Testing
 
 `./ci/run.sh` builds a pinned CI container (`ci/Dockerfile`: shellcheck, vint,
-vim 8.2, neovim 0.12.4, git, vim-fugitive) and runs, aggregating exit codes:
+vim 8.2, neovim 0.12.4, git, vim-fugitive, universal-ctags) and runs,
+aggregating exit codes:
 
 - **shellcheck** over the shell scripts, and **vint** over `plugin/`/`autoload/`
   (config in `.vintrc.yaml`).
@@ -246,8 +247,13 @@ vim 8.2, neovim 0.12.4, git, vim-fugitive) and runs, aggregating exit codes:
   select-to-tab, reopen-after-close, close-tab-on-`:q`, stat-column alignment,
   the title bar, and `RefreshStats`/rename-path handling against a temp repo.
 - **Shell tests** (`ci/test_neodiff.sh`): assertions on the Vimscript string
-  builders and `_neodiff_parse_changes` for each argument pattern, driven by a
-  fixture repo from `ci/mkrepo.sh` (also exercises the submodule/dir skip).
+  builders, `_neodiff_parse_changes` for each argument pattern (also exercises
+  the submodule/dir skip, driven by `ci/mkrepo.sh`), the gdiff pathspec-vs-rev
+  classification, and the install-hook block.
+- **Fugitive/ctags integration** (`ci/integration.vim`, `ci/test_symbols.vim`):
+  container-only checks that need a real diff or ctags -- that the blame maps are
+  stripped from the diff panes, and that `neodiff#CollectSymbols()` finds the
+  right symbols and attributes them to the right entries.
 - **Golden screen-dumps** (`ci/screendump.vim` + `ci/screendump_inner.vim`): an
   outer Vim runs each editor inside `term_start` on a fixed-path fixture and
   `term_dumpwrite()`s the screen, compared to `ci/dumps/*.golden`. This is the
@@ -258,5 +264,7 @@ vim 8.2, neovim 0.12.4, git, vim-fugitive) and runs, aggregating exit codes:
 
 **Not auto-tested** (behavioral, need a real terminal/session): tmux pane zoom
 (`_neodiff_tmux_zoom`), an actual mouse click (the `<LeftRelease>` *handler* is
-exercised via its mapping, but not a real click event), and coc/clangd
-diagnostic suppression (needs coc loaded). Verify these by hand when touched.
+exercised via its mapping, but not a real click event), coc/clangd diagnostic
+suppression (needs coc loaded), and the symbol-search picker UI (the fzf /
+inputlist prompt -- `neodiff#CollectSymbols()` and the jump are tested, but the
+interactive selection is not). Verify these by hand when touched.

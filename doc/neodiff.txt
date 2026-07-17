@@ -29,6 +29,8 @@ Inside the view:                                                *neodiff-keys*
     ]c, [c                   next / previous change (built-in diff)
     <C-l>, <C-h>             focus pane right / left
     <C-b>                    toggle the sidebar (hide for a full-width diff)
+    <C-p>                    search symbols in the changed files (needs ctags;
+                             uses fzf if available, else a numbered prompt)
     ?                        echo the key legend
 
 The plugin's public entry point, called by the shell launchers, is:

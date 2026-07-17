@@ -639,6 +639,7 @@ function! s:ShowHelp() abort
         \ '  gt  gT    previous / next file',
         \ '  C-h C-l   focus pane left / right',
         \ '  C-b       toggle the sidebar',
+        \ '  C-p       search symbols in the changed files',
         \ ], "\n")
 endfunction
 
@@ -669,6 +670,144 @@ function! s:OnQuitPre() abort
     endif
     call add(s:pending_close, t:neodiff_id)
     call timer_start(0, function('s:DrainClose'))
+endfunction
+
+" Collect the symbols (tags) across the changed files in the current view, using
+" Universal/Exuberant Ctags. Returns a list of
+" {'name','id','file','line','kind'} where id is the owning entry's stable id.
+" Only unpinned entries whose working-tree file is readable are scanned (deleted
+" files and meta/pinned entries have no such file). Empty if ctags is missing,
+" fails, or finds nothing. Public so a custom picker can reuse it.
+function! neodiff#CollectSymbols() abort
+    if !executable('ctags')
+        return []
+    endif
+    let l:files = []
+    let l:id_by_file = {}
+    let l:entry_id = 0
+    while l:entry_id < len(s:entries)
+        let l:entry = s:entries[l:entry_id]
+        if !get(l:entry, 'pinned', 0) && filereadable(l:entry.file)
+            call add(l:files, l:entry.file)
+            let l:id_by_file[l:entry.file] = l:entry_id
+        endif
+        let l:entry_id += 1
+    endwhile
+    if empty(l:files)
+        return []
+    endif
+
+    " --excmd=number puts a line number (not a search pattern) in the address
+    " field; -f - writes the tab-separated tags to stdout in definition order.
+    let l:cmd = 'ctags -f - --excmd=number --sort=no '
+        \ . join(map(copy(l:files), 'shellescape(v:val)'), ' ')
+    let l:tag_lines = systemlist(l:cmd)
+    if v:shell_error
+        return []
+    endif
+
+    let l:symbols = []
+    for l:tag_line in l:tag_lines
+        if l:tag_line[0] ==# '!'
+            continue        " ctags pseudo-tag header
+        endif
+        let l:parts = split(l:tag_line, '\t')
+        if len(l:parts) < 3 || !has_key(l:id_by_file, l:parts[1])
+            continue
+        endif
+        call add(l:symbols, {
+            \ 'name': l:parts[0],
+            \ 'id': l:id_by_file[l:parts[1]],
+            \ 'file': l:parts[1],
+            \ 'line': str2nr(matchstr(l:parts[2], '\d\+')),
+            \ 'kind': len(l:parts) >= 4 ? l:parts[3] : ''})
+    endfor
+    return l:symbols
+endfunction
+
+" Jump to a symbol: switch to its file's tab (reopening if closed), focus the
+" working-tree (rightmost) diff pane, and move to the symbol's line. The line is
+" from the working-tree file, so it is exact for working-tree diffs and a close
+" approximation for revision diffs where that file has since moved.
+function! s:JumpToSymbol(symbol) abort
+    call s:GotoOrReopen(a:symbol.id)
+    let l:diff_wins = []
+    for l:nr in range(1, winnr('$'))
+        if getwinvar(l:nr, '&diff')
+            call add(l:diff_wins, [l:nr, win_screenpos(l:nr)[1]])
+        endif
+    endfor
+    if !empty(l:diff_wins)
+        call sort(l:diff_wins, {left, right -> left[1] - right[1]})
+        execute l:diff_wins[-1][0] . 'wincmd w'
+    endif
+    if a:symbol.line > 0
+        execute a:symbol.line
+        normal! zz
+    endif
+endfunction
+
+" Fallback picker (no fzf): a numbered inputlist.
+function! s:InputlistSymbols(symbols) abort
+    let l:choices = ['Select a symbol:']
+    let l:index = 0
+    for l:symbol in a:symbols
+        call add(l:choices, printf('%d. %s  (%s:%d)', l:index + 1, l:symbol.name,
+            \ fnamemodify(l:symbol.file, ':t'), l:symbol.line))
+        let l:index += 1
+    endfor
+    let l:pick = inputlist(l:choices)
+    if l:pick >= 1 && l:pick <= len(a:symbols)
+        call s:JumpToSymbol(a:symbols[l:pick - 1])
+    endif
+endfunction
+
+" fzf sink: the selected source line is prefixed with the symbol's index.
+function! s:FzfSymbolSink(line) abort
+    let l:index = str2nr(matchstr(a:line, '^\d\+'))
+    if l:index >= 0 && l:index < len(s:fzf_symbols)
+        call s:JumpToSymbol(s:fzf_symbols[l:index])
+    endif
+endfunction
+
+" fzf picker (when fzf.vim is installed). Each source line hides a leading index
+" column (--with-nth=2..) that the sink reads back.
+function! s:FzfSymbols(symbols) abort
+    let s:fzf_symbols = a:symbols
+    let l:source = []
+    let l:index = 0
+    for l:symbol in a:symbols
+        call add(l:source, l:index . "\t" . l:symbol.name . '  '
+            \ . (l:symbol.kind ==# '' ? '' : '[' . l:symbol.kind . '] ')
+            \ . fnamemodify(l:symbol.file, ':t') . ':' . l:symbol.line)
+        let l:index += 1
+    endfor
+    call fzf#run(fzf#wrap({
+        \ 'source': l:source,
+        \ 'sink': function('s:FzfSymbolSink'),
+        \ 'options': ['--with-nth=2..', '--delimiter=\t', '--prompt', 'Symbols> ']}))
+endfunction
+
+" Search the symbols in the current view and jump to the chosen one. Uses fzf
+" when available, else a numbered inputlist; messages if ctags is missing or the
+" view has no symbols. Bound to <C-p>.
+function! s:SearchSymbols() abort
+    if !executable('ctags')
+        echohl WarningMsg
+        echo 'neodiff: symbol search needs Universal/Exuberant Ctags (ctags not found)'
+        echohl None
+        return
+    endif
+    let l:symbols = neodiff#CollectSymbols()
+    if empty(l:symbols)
+        echo 'neodiff: no symbols found in the changed files'
+        return
+    endif
+    if exists('*fzf#run')
+        call s:FzfSymbols(l:symbols)
+    else
+        call s:InputlistSymbols(l:symbols)
+    endif
 endfunction
 
 " Apply each entry's diff setup to its (already open) tab, tag the tab with its
@@ -720,6 +859,8 @@ function! neodiff#Setup(title, entries, refresh) abort
     nnoremap <silent> <C-l> <C-w>l
     " Toggle the global sidebar (hide it to view the diff full-width).
     nnoremap <silent> <C-b> :call <SID>ToggleSidebar()<CR>
+    " Fuzzy-search symbols across the changed files and jump to one.
+    nnoremap <silent> <C-p> :call <SID>SearchSymbols()<CR>
     " Echo the key legend from any tab, not just the sidebar.
     nnoremap <silent> ? :call <SID>ShowHelp()<CR>
 
