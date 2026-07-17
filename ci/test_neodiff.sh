@@ -139,7 +139,8 @@ assert_absent "parse worktree no gedit" "Gedit" "$_ndf_entries"
 # capture what gdiff would hand to Vim.
 # ------------------------------------------------------------------------------
 _cap_entries=""
-_neodiff_launch() { _cap_entries="$3"; }
+_cap_refresh=""
+_neodiff_launch() { _cap_entries="$3"; _cap_refresh="$4"; }
 
 gdiff keep.txt
 assert_contains "gdiff pathspec: working-tree rev" "Gvdiffsplit :0:keep.txt" "$_cap_entries"
@@ -150,6 +151,34 @@ assert_contains "gdiff -- pathspec: working-tree rev" "Gvdiffsplit :0:keep.txt" 
 
 gdiff HEAD~1 -- keep.txt
 assert_contains "gdiff rev + pathspec: keeps the rev" "Gvdiffsplit HEAD~1:keep.txt" "$_cap_entries"
+
+# ------------------------------------------------------------------------------
+# gdiff range: pin a "Diff Commits" folder listing the commits in the range, one
+# pinned entry per commit; a non-range diff pins nothing, and the pinned-commit
+# state must not leak from a prior range call. Ranges skip the :w stat refresh.
+# ------------------------------------------------------------------------------
+rangerepo=$(mktemp -d)/rr
+rr_git() { git -C "$rangerepo" -c commit.gpgsign=false -c user.email=t@t -c user.name=t "$@"; }
+mkdir -p "$rangerepo"
+rr_git init -q
+printf '1\n' > "$rangerepo/f.txt"; rr_git add -A; rr_git commit -q -m base
+printf '2\n' > "$rangerepo/f.txt"; rr_git add -A; rr_git commit -q -m second
+printf '3\n' > "$rangerepo/f.txt"; rr_git add -A; rr_git commit -q -m third
+cd "$rangerepo" || exit 1
+
+gdiff HEAD~2..HEAD
+assert_contains "gdiff range: pins Diff Commits folder" "'label': 'Diff Commits/" "$_cap_entries"
+assert_contains "gdiff range: pinned entries are pinned" "'pinned': 1" "$_cap_entries"
+assert_eq "gdiff range: one pinned entry per commit" "2" \
+    "$(printf '%s' "$_cap_entries" | grep -o 'Diff Commits/' | wc -l | tr -d ' ')"
+assert_eq "gdiff range: no :w refresh" "[]" "$_cap_refresh"
+
+# A single bare revision is not a range: no pinned commits, and no stale ones
+# from the range call above.
+gdiff HEAD~1
+assert_absent "gdiff non-range: no Diff Commits" "Diff Commits/" "$_cap_entries"
+
+cd "$fixture" || exit 1
 
 # ------------------------------------------------------------------------------
 # install.sh: writes an idempotent, marker-guarded source block into an rc file.

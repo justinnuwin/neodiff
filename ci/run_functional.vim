@@ -326,6 +326,26 @@ function! Test_sidebar_toggle() abort
     call Assert(NdHasSidebar(), 'toggle: sidebar restored after second C-b')
 endfunction
 
+" Pinned entries render above the diff tree: flat pinned lines first, then the
+" pinned subtree (a label with a '/', e.g. the range-diff 'Diff Commits' folder),
+" then the diff tree.
+function! Test_pinned_entries() abort
+    let l:entries = [
+        \ NdEntry('Commit Description', NdFile('desc', ['d']), '', '', '', 1),
+        \ NdEntry('Diff Commits/001 aaa first', NdFile('c1', ['m1']), '', '', '', 1),
+        \ NdEntry('Diff Commits/002 bbb second', NdFile('c2', ['m2']), '', '', '', 1),
+        \ NdDiffEntry('src/main.c', '', 'M')]
+    call NdSetupCase('Pinned', l:entries, [])
+
+    call Assert(NdFindLine('Commit Description') > 0, 'pinned: flat entry shown')
+    call Assert(NdFindLine('Diff Commits/') > 0, 'pinned: subtree folder shown')
+    call Assert(NdFindLine('001 aaa first') > 0, 'pinned: subtree child shown')
+    call Assert(NdFindLine('Commit Description') < NdFindLine('main\.c'),
+        \ 'pinned: pinned section precedes the diff tree')
+    call Assert(NdFindLine('Diff Commits/') < NdFindLine('main\.c'),
+        \ 'pinned: subtree precedes the diff tree')
+endfunction
+
 " gt/gT preserve the focused pane: stepping from the sidebar stays on the
 " sidebar in the next tab; stepping from a diff pane stays on a diff pane.
 function! Test_preserve_pane() abort
@@ -394,6 +414,7 @@ let s:cases = [
     \ 'Test_title_bar',
     \ 'Test_sidebar_toggle',
     \ 'Test_preserve_pane',
+    \ 'Test_pinned_entries',
     \ 'Test_refresh_stats']
 
 for s:case in s:cases

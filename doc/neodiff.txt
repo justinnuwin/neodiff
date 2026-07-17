@@ -21,6 +21,9 @@ From the shell:
     gdiff <rev1>..<rev2>     diff a range (A...B uses their merge-base)
     gdiff <rev1> <rev2>      diff two revisions
 
+A range diff also pins a "Diff Commits" folder above the sidebar tree, listing
+the commits in the range with one entry per commit message.
+
 Inside the view:                                                *neodiff-keys*
 
     <CR>, o, click           select file (jump to its tab) / toggle a dir

@@ -241,6 +241,35 @@ gshow() {
     _neodiff_launch "$toplevel" "$title" "$entries" "[]" "${args[@]}"
 }
 
+# Build pinned "Diff Commits" entries for a range diff: one per commit in the
+# range, each holding that commit's full message, so the sidebar shows which
+# commits produced the diff (a pinned folder, mirroring gshow's pinned commit
+# description). Runs git in the current directory.
+# Args:
+#   tmpdir - scratch dir to hold the per-commit message files
+#   lrev   - range base (exclusive)
+#   rrev   - range tip (inclusive)
+# Populates _nrc_args (message files in tab order) and _nrc_entries (the
+# comma-joined pinned entry dicts); both empty when the range holds no commits.
+_neodiff_range_commits() {
+    local tmpdir="$1" lrev="$2" rrev="$3"
+    _nrc_args=(); _nrc_entries=""
+    mkdir -p "$tmpdir/commits"
+    local sha idx=0 abbrev subject leaf msgfile
+    while IFS= read -r sha; do
+        idx=$((idx + 1))
+        abbrev=$(git rev-parse --short "$sha")
+        # Strip '/' from the subject so the label stays a single "Diff Commits"
+        # child instead of splitting into extra pinned subdirectories.
+        subject=$(git show --no-patch --format='%s' "$sha" | tr '/' '-')
+        leaf=$(printf '%03d. %s %s' "$idx" "$abbrev" "$subject")
+        msgfile="$tmpdir/commits/$abbrev"
+        git show --no-patch --pretty=fuller "$sha" > "$msgfile"
+        _nrc_args+=("$msgfile")
+        _nrc_entries+="${_nrc_entries:+, }$(_neodiff_entry "Diff Commits/$leaf" "$msgfile" "setlocal readonly nomodifiable" "" "" "pinned")"
+    done < <(git rev-list --reverse "${lrev}..${rrev}")
+}
+
 # ------------------------------------------------------------------------------
 # gdiff - open a diff in Vim, one tab per changed file.
 #
@@ -287,7 +316,7 @@ gdiff() {
     # a range; a range must diff its two endpoints (treating "A..B" as one object
     # would show every file as wholly new). An empty range endpoint defaults to
     # HEAD, matching git's own range semantics.
-    local lrev rrev="" right_wt=0
+    local lrev rrev="" right_wt=0 is_range=0
     if [ "$staged" -eq 1 ]; then
         lrev="HEAD"; rrev=":0"
     elif [ "$rev_count" -eq 0 ]; then
@@ -299,12 +328,14 @@ gdiff() {
                 [ -z "$range_base" ] && range_base="HEAD"
                 [ -z "$range_target" ] && range_target="HEAD"
                 lrev=$(git merge-base "$range_base" "$range_target"); rrev="$range_target"
+                is_range=1
                 ;;
             *..*)
                 local range_base="${rev1%%..*}" range_target="${rev1##*..}"
                 [ -z "$range_base" ] && range_base="HEAD"
                 [ -z "$range_target" ] && range_target="HEAD"
                 lrev="$range_base"; rrev="$range_target"
+                is_range=1
                 ;;
             *)
                 lrev="$rev1"; right_wt=1
@@ -320,17 +351,34 @@ gdiff() {
         return 0
     fi
 
-    # args is what `vim -p` opens; entries is the parallel list of dict literals
-    # the plugin uses to build the diffs, tag tabs, show stats, and reopen tabs.
-    local args=("${_ndf_args[@]}") entries="[$_ndf_entries]"
+    # For a range diff, pin a "Diff Commits" folder above the tree listing the
+    # commits whose combined change is shown (one entry per commit, holding its
+    # message). Its temp files (and tabs) precede the changed-file entries, so the
+    # args and entries lists stay parallel.
+    local tmpdir="" args=() entries
+    # Clear the pinned-commit globals so a prior range invocation's commits do
+    # not leak into this (possibly non-range) one; _neodiff_range_commits repopulates.
+    _nrc_entries=""; _nrc_args=()
+    if [ "$is_range" -eq 1 ]; then
+        tmpdir=$(mktemp -d)
+        _neodiff_range_commits "$tmpdir" "$lrev" "$rrev"
+    fi
+    if [ -n "$_nrc_entries" ]; then
+        args=("${_nrc_args[@]}" "${_ndf_args[@]}")
+        entries="[$_nrc_entries, $_ndf_entries]"
+    else
+        args=("${_ndf_args[@]}")
+        entries="[$_ndf_entries]"
+    fi
 
-    # When the diff involves the working tree (plain or single-revision), re-run
-    # numstat on every :w so the sidebar stats track edits. Committed comparisons
-    # (staged, or two revisions) never change, so skip the refresh.
+    # Re-run numstat on every :w only when the diff involves the working tree
+    # (no args or a single bare revision, i.e. right_wt=1), so the sidebar stats
+    # track edits. Committed comparisons -- staged, two revisions, or a range --
+    # never change, so skip the refresh.
     # -M so a renamed file keeps its stat on refresh; s:RefreshStats normalizes
     # the numstat `{old => new}` path form (Vim system() cannot carry -z NULs).
     local refresh
-    if [ "$staged" -eq 0 ] && [ "$rev_count" -le 1 ]; then
+    if [ "$right_wt" -eq 1 ]; then
         refresh="['git', '-C', $(_neodiff_vstr "$toplevel"), 'diff', '-M', '--numstat'"
         for arg in "$@"; do refresh+=", $(_neodiff_vstr "$arg")"; done
         refresh+="]"
@@ -346,4 +394,7 @@ gdiff() {
     fi
     title=$(_neodiff_vstr "$desc")
     _neodiff_launch "$toplevel" "$title" "$entries" "$refresh" "${args[@]}"
+    # _neodiff_launch runs Vim synchronously, so the pinned commit messages are
+    # only needed until it returns.
+    [ -n "$tmpdir" ] && rm -rf "$tmpdir"
 }
