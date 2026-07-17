@@ -17,12 +17,23 @@ Install the Vim plugin with any plugin manager, e.g. with vim-plug:
 Plug 'justinnuwin/neodiff'
 ```
 
-Then source the shell launchers from your shell rc so `gshow` / `gdiff` are
-defined:
+The `gshow` / `gdiff` aliases come from the shell launchers, which must be
+sourced from your shell rc. Let the plugin manager do it on install with a
+post-update hook (`shell/install.sh` appends an idempotent, marker-guarded
+`source` block to `~/.bashrc` / `~/.zshrc`):
+
+```
+Plug 'justinnuwin/neodiff', { 'do': './shell/install.sh' }
+```
+
+Or wire it up by hand:
 
 ```
 source /path/to/neodiff/shell/neodiff.sh
 ```
+
+`shell/install.sh` also accepts explicit rc paths (or `$NEODIFF_RC`) and is safe
+to re-run -- it refreshes its block in place rather than duplicating it.
 
 `tpope/vim-fugitive` is required (the diffs use `:Gedit` / `:Gvdiffsplit`).
 

@@ -152,6 +152,19 @@ gdiff HEAD~1 -- keep.txt
 assert_contains "gdiff rev + pathspec: keeps the rev" "Gvdiffsplit HEAD~1:keep.txt" "$_cap_entries"
 
 # ------------------------------------------------------------------------------
+# install.sh: writes an idempotent, marker-guarded source block into an rc file.
+# ------------------------------------------------------------------------------
+tmprc=$(mktemp)
+printf 'existing line\n' > "$tmprc"
+bash "$repo_root/shell/install.sh" "$tmprc" >/dev/null
+assert_eq "install writes one block" "1" "$(grep -cF '>>> neodiff >>>' "$tmprc")"
+assert_contains "install sources neodiff.sh" "shell/neodiff.sh" "$(cat "$tmprc")"
+assert_contains "install preserves existing content" "existing line" "$(cat "$tmprc")"
+bash "$repo_root/shell/install.sh" "$tmprc" >/dev/null
+assert_eq "install is idempotent" "1" "$(grep -cF '>>> neodiff >>>' "$tmprc")"
+rm -f "$tmprc"
+
+# ------------------------------------------------------------------------------
 # Syntax check under zsh (the module is sourced by zsh in real use).
 # ------------------------------------------------------------------------------
 if command -v zsh >/dev/null 2>&1; then
