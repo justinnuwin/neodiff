@@ -126,6 +126,16 @@ function! NdFocusFiletype(want_sidebar) abort
     return 0
 endfunction
 
+" Whether a sidebar window is present in the current tab.
+function! NdHasSidebar() abort
+    for l:winnr in range(1, winnr('$'))
+        if getwinvar(l:winnr, '&filetype') ==# 'neodiff'
+            return 1
+        endif
+    endfor
+    return 0
+endfunction
+
 " Switch to the tab tagged with neodiff_id a:id.
 function! NdGotoId(id) abort
     for l:tabnr in range(1, tabpagenr('$'))
@@ -298,6 +308,24 @@ function! Test_title_bar() abort
     call Assert(neodiff#Title() =~# 'gT <- c\.txt', 'title: prev wraps to c.txt')
 endfunction
 
+" C-b toggles the sidebar, and the hidden state persists across tabs.
+function! Test_sidebar_toggle() abort
+    let l:entries = [
+        \ NdDiffEntry('a.txt', '', 'M'),
+        \ NdDiffEntry('b.txt', '', 'M')]
+    call NdSetupCase('Sidebar', l:entries, [])
+    call Assert(NdHasSidebar(), 'toggle: sidebar present initially')
+
+    execute "normal \<C-b>"
+    call Assert(!NdHasSidebar(), 'toggle: sidebar hidden after C-b')
+
+    call NdGotoId(1)
+    call Assert(!NdHasSidebar(), 'toggle: stays hidden after switching tabs')
+
+    execute "normal \<C-b>"
+    call Assert(NdHasSidebar(), 'toggle: sidebar restored after second C-b')
+endfunction
+
 " On :w, RefreshStats re-runs numstat and updates each entry's stat; a renamed
 " file's `{old => new}` numstat path reduces to the entry label (NumstatNewPath).
 function! Test_refresh_stats() abort
@@ -346,6 +374,7 @@ let s:cases = [
     \ 'Test_close_tab_on_quit',
     \ 'Test_stat_alignment',
     \ 'Test_title_bar',
+    \ 'Test_sidebar_toggle',
     \ 'Test_refresh_stats']
 
 for s:case in s:cases

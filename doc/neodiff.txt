@@ -28,6 +28,7 @@ Inside the view:                                                *neodiff-keys*
     :q  (in a diff pane)     close the whole tab
     ]c, [c                   next / previous change (built-in diff)
     <C-l>, <C-h>             focus pane right / left
+    <C-b>                    toggle the sidebar (hide for a full-width diff)
     ?                        echo the key legend
 
 The plugin's public entry point, called by the shell launchers, is:

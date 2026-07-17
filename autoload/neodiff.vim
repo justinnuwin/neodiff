@@ -32,6 +32,9 @@ let s:line_to_node = {}
 let s:nav_order = []
 " Tab ids queued for deferred close (see s:OnQuitPre).
 let s:pending_close = []
+" Whether the sidebar is currently toggled hidden; TabEnter honors this so the
+" sidebar stays hidden across tabs until toggled back (see s:ToggleSidebar).
+let s:sidebar_hidden = 0
 
 function! s:NewNode(name, path) abort
     return {'dirs': {}, 'files': {}, 'name': a:name, 'path': a:path}
@@ -348,14 +351,41 @@ function! s:OpenSidebar() abort
     wincmd =
 endfunction
 
+" Close the sidebar window in the current tab, if present, then rebalance the
+" remaining diff panes.
+function! s:CloseSidebar() abort
+    let l:winnr = s:SidebarWinnr()
+    if l:winnr != -1
+        execute l:winnr . 'close'
+        wincmd =
+    endif
+endfunction
+
 " Ensure the sidebar exists in the current tab and its contents are current,
-" then rebalance the diff panes (winfixwidth keeps the sidebar's width).
+" then rebalance the diff panes (winfixwidth keeps the sidebar's width). While
+" the sidebar is toggled hidden, keep it closed instead (dropping any that
+" lingers in a tab not yet re-entered since hiding).
 function! s:EnsureSidebar() abort
+    if s:sidebar_hidden
+        call s:CloseSidebar()
+        return
+    endif
     if s:SidebarWinnr() == -1
         call s:OpenSidebar()
     endif
     call s:Render()
     wincmd =
+endfunction
+
+" Toggle the sidebar's visibility. The state persists in s:sidebar_hidden so
+" TabEnter (s:EnsureSidebar) honors it in every tab, not just the current one.
+function! s:ToggleSidebar() abort
+    let s:sidebar_hidden = !s:sidebar_hidden
+    if s:sidebar_hidden
+        call s:CloseSidebar()
+    else
+        call s:EnsureSidebar()
+    endif
 endfunction
 
 " Diff appearance for the managed diff panes. NOTE: for Neovim only.
@@ -608,6 +638,7 @@ function! s:ShowHelp() abort
         \ '  [c  ]c    previous / next hunk',
         \ '  gt  gT    previous / next file',
         \ '  C-h C-l   focus pane left / right',
+        \ '  C-b       toggle the sidebar',
         \ ], "\n")
 endfunction
 
@@ -647,6 +678,7 @@ function! neodiff#Setup(title, entries, refresh) abort
     let s:title = a:title
     let s:entries = a:entries
     let s:refresh = a:refresh
+    let s:sidebar_hidden = 0
     call s:BuildTree()
     call s:SetupTitleBar()
     call s:SetupDiffView()
@@ -686,6 +718,8 @@ function! neodiff#Setup(title, entries, refresh) abort
     " to cross panes (e.g. C-h twice from the new pane lands on the tree).
     nnoremap <silent> <C-h> <C-w>h
     nnoremap <silent> <C-l> <C-w>l
+    " Toggle the global sidebar (hide it to view the diff full-width).
+    nnoremap <silent> <C-b> :call <SID>ToggleSidebar()<CR>
     " Echo the key legend from any tab, not just the sidebar.
     nnoremap <silent> ? :call <SID>ShowHelp()<CR>
 

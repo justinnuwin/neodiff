@@ -49,6 +49,7 @@ to re-run -- it refreshes its block in place rather than duplicating it.
 | Diff revisions | `gdiff <rev>` or `gdiff <rev1> <rev2>` |
 | Next / prev file tab | `gt` / `gT` |
 | Select file / toggle dir (sidebar) | `<CR>`, `o`, or mouse click |
+| Toggle the sidebar | `<C-b>` |
 | Close a file's tab | `:q` in a diff pane |
 | Next / prev change in file | `]c` / `[c` (built-in diff) |
 
