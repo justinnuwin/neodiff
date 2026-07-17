@@ -351,6 +351,14 @@ function! s:OpenSidebar() abort
     wincmd =
 endfunction
 
+" Focus the sidebar window in the current tab, if present.
+function! s:FocusSidebar() abort
+    let l:winnr = s:SidebarWinnr()
+    if l:winnr != -1
+        execute l:winnr . 'wincmd w'
+    endif
+endfunction
+
 " Close the sidebar window in the current tab, if present, then rebalance the
 " remaining diff panes.
 function! s:CloseSidebar() abort
@@ -591,11 +599,14 @@ endfunction
 
 " Move to the file a:delta steps from the current tab in s:nav_order (wrapping),
 " reopening its diff tab if it was closed. Bound to gt/gT so tab navigation
-" follows the visible tree rather than physical tab order.
+" follows the visible tree rather than physical tab order. Preserves which pane
+" is focused: stepping from the sidebar lands on the destination tab's sidebar,
+" not its diff, so tree navigation does not drop the cursor into the diff.
 function! s:NavStep(delta) abort
     if empty(s:nav_order)
         return
     endif
+    let l:on_sidebar = &filetype ==# 'neodiff'
     let l:current_id = gettabvar(tabpagenr(), 'neodiff_id', -2)
     let l:idx = index(s:nav_order, l:current_id)
     if l:idx < 0
@@ -606,6 +617,9 @@ function! s:NavStep(delta) abort
         let l:next += len(s:nav_order)
     endif
     call s:GotoOrReopen(s:nav_order[l:next])
+    if l:on_sidebar
+        call s:FocusSidebar()
+    endif
 endfunction
 
 " Toggle a directory, or jump to (reopening if needed) the file under the

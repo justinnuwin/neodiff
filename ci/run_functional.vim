@@ -326,6 +326,24 @@ function! Test_sidebar_toggle() abort
     call Assert(NdHasSidebar(), 'toggle: sidebar restored after second C-b')
 endfunction
 
+" gt/gT preserve the focused pane: stepping from the sidebar stays on the
+" sidebar in the next tab; stepping from a diff pane stays on a diff pane.
+function! Test_preserve_pane() abort
+    let l:entries = [
+        \ NdDiffEntry('a.txt', '', 'M'),
+        \ NdDiffEntry('b.txt', '', 'M'),
+        \ NdDiffEntry('c.txt', '', 'M')]
+    call NdSetupCase('Preserve', l:entries, [])
+
+    call NdFocusFiletype(1)
+    execute 'normal gt'
+    call Assert(&filetype ==# 'neodiff', 'preserve: still on sidebar after gt')
+
+    call NdFocusFiletype(0)
+    execute 'normal gt'
+    call Assert(&filetype !=# 'neodiff', 'preserve: still on content after gt')
+endfunction
+
 " On :w, RefreshStats re-runs numstat and updates each entry's stat; a renamed
 " file's `{old => new}` numstat path reduces to the entry label (NumstatNewPath).
 function! Test_refresh_stats() abort
@@ -375,6 +393,7 @@ let s:cases = [
     \ 'Test_stat_alignment',
     \ 'Test_title_bar',
     \ 'Test_sidebar_toggle',
+    \ 'Test_preserve_pane',
     \ 'Test_refresh_stats']
 
 for s:case in s:cases
