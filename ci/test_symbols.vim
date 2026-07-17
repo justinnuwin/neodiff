@@ -56,6 +56,53 @@ for s:symbol in s:symbols
     endif
 endfor
 
+" fzf picker wiring. Stub fzf#run/fzf#wrap on the runtimepath (autoload functions
+" must live in a file named fzf.vim) so the fzf branch runs headlessly. The
+" fzf#wrap stub mimics the real one, which appends its --expect keys to 'options'
+" by string concatenation -- so it throws if neodiff passes a List (the bug being
+" guarded against). Then drive the captured sink and confirm the jump.
+let g:nd_fzf_spec = {}
+let s:fzf_stub = tempname()
+call mkdir(s:fzf_stub . '/autoload', 'p')
+call writefile([
+    \ 'function! fzf#wrap(spec) abort',
+    \ '    let l:spec = copy(a:spec)',
+    \ '    let l:spec.options = get(l:spec, "options", "") . " --expect=ctrl-t"',
+    \ '    return l:spec',
+    \ 'endfunction',
+    \ 'function! fzf#run(spec) abort',
+    \ '    let g:nd_fzf_spec = a:spec',
+    \ 'endfunction'], s:fzf_stub . '/autoload/fzf.vim')
+execute 'set runtimepath^=' . fnameescape(s:fzf_stub)
+runtime autoload/fzf.vim
+call Assert(exists('*fzf#run'), 'fzf: stub loaded')
+
+let s:fzf_ok = 1
+try
+    execute "normal \<C-p>"
+catch
+    let s:fzf_ok = 0
+    call add(g:failures, 'fzf: picker threw (options must be a String): ' . v:exception)
+endtry
+call Assert(type(get(g:nd_fzf_spec, 'options', 0)) == type(''), 'fzf: options is a String')
+call Assert(type(get(g:nd_fzf_spec, 'source', 0)) == type([]), 'fzf: source is a List')
+
+if s:fzf_ok && has_key(g:nd_fzf_spec, 'sink')
+    let s:gamma_line = ''
+    for s:line in g:nd_fzf_spec.source
+        if s:line =~# 'gamma_fn'
+            let s:gamma_line = s:line
+            break
+        endif
+    endfor
+    call Assert(s:gamma_line !=# '', 'fzf: source has a readable gamma_fn entry')
+    if s:gamma_line !=# ''
+        call g:nd_fzf_spec.sink(s:gamma_line)
+        call Assert(gettabvar(tabpagenr(), 'neodiff_id', -9) == 1 && line('.') == 2,
+            \ 'fzf: selecting gamma_fn jumps to gamma.c:2')
+    endif
+endif
+
 if empty(g:failures)
     echo 'symbols: PASS (' . len(s:symbols) . ' symbols)'
     qall!

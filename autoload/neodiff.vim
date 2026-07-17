@@ -776,30 +776,32 @@ function! s:InputlistSymbols(symbols) abort
     endif
 endfunction
 
-" fzf sink: the selected source line is prefixed with the symbol's index.
+" fzf sink: look the selected display line back up to its symbol and jump.
 function! s:FzfSymbolSink(line) abort
-    let l:index = str2nr(matchstr(a:line, '^\d\+'))
-    if l:index >= 0 && l:index < len(s:fzf_symbols)
-        call s:JumpToSymbol(s:fzf_symbols[l:index])
+    if has_key(s:fzf_symbols, a:line)
+        call s:JumpToSymbol(s:fzf_symbols[a:line])
     endif
 endfunction
 
-" fzf picker (when fzf.vim is installed). Each source line hides a leading index
-" column (--with-nth=2..) that the sink reads back.
+" fzf picker (when fzf.vim is installed). Each source line is a readable
+" "name  [kind] path:line" that s:fzf_symbols maps back to its symbol; the
+" repo-relative path keeps the line unique so the lookup is unambiguous. Options
+" are passed as a String, not a List: fzf#wrap appends its --expect keys to
+" 'options' with string concatenation, which errors on a List.
 function! s:FzfSymbols(symbols) abort
-    let s:fzf_symbols = a:symbols
+    let s:fzf_symbols = {}
     let l:source = []
-    let l:index = 0
     for l:symbol in a:symbols
-        call add(l:source, l:index . "\t" . l:symbol.name . '  '
-            \ . (l:symbol.kind ==# '' ? '' : '[' . l:symbol.kind . '] ')
-            \ . fnamemodify(l:symbol.file, ':t') . ':' . l:symbol.line)
-        let l:index += 1
+        let l:display = printf('%s  %s%s:%d', l:symbol.name,
+            \ l:symbol.kind ==# '' ? '' : '[' . l:symbol.kind . '] ',
+            \ fnamemodify(l:symbol.file, ':.'), l:symbol.line)
+        let s:fzf_symbols[l:display] = l:symbol
+        call add(l:source, l:display)
     endfor
     call fzf#run(fzf#wrap({
         \ 'source': l:source,
         \ 'sink': function('s:FzfSymbolSink'),
-        \ 'options': ['--with-nth=2..', '--delimiter=\t', '--prompt', 'Symbols> ']}))
+        \ 'options': '--prompt "Symbols> "'}))
 endfunction
 
 " Search the symbols in the current view and jump to the chosen one. Uses fzf
