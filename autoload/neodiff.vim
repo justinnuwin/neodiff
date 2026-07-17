@@ -804,6 +804,13 @@ function! s:FzfSymbols(symbols) abort
         \ 'options': '--prompt "Symbols> "'}))
 endfunction
 
+" Whether the fzf.vim picker (fzf#run/fzf#wrap) is available. exists('*fzf#run')
+" is false until the fzf autoload script has been sourced, so also look for its
+" autoload file on the runtimepath -- calling fzf#run then autoloads it.
+function! s:HasFzf() abort
+    return exists('*fzf#run') || !empty(globpath(&runtimepath, 'autoload/fzf.vim'))
+endfunction
+
 " Search the symbols in the current view and jump to the chosen one. Uses fzf
 " when available, else a numbered inputlist; messages if ctags is missing or the
 " view has no symbols. Bound to <C-p>.
@@ -819,7 +826,7 @@ function! s:SearchSymbols() abort
         echo 'neodiff: no symbols found in the changed files'
         return
     endif
-    if exists('*fzf#run')
+    if s:HasFzf()
         call s:FzfSymbols(l:symbols)
     else
         call s:InputlistSymbols(l:symbols)

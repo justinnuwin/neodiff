@@ -74,8 +74,11 @@ call writefile([
     \ '    let g:nd_fzf_spec = a:spec',
     \ 'endfunction'], s:fzf_stub . '/autoload/fzf.vim')
 execute 'set runtimepath^=' . fnameescape(s:fzf_stub)
-runtime autoload/fzf.vim
-call Assert(exists('*fzf#run'), 'fzf: stub loaded')
+" Do NOT source it here: SearchSymbols must detect fzf from the autoload file on
+" the runtimepath (exists('*fzf#run') stays false until the first call), and then
+" trigger the autoload by calling fzf#run. This guards the detection bug where
+" exists('*fzf#run') alone left fzf unused until something else loaded it.
+call Assert(!exists('*fzf#run'), 'fzf: autoload not yet sourced (detection must not need exists)')
 
 let s:fzf_ok = 1
 try
