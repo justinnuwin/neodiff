@@ -805,10 +805,12 @@ function! s:FzfSymbols(symbols) abort
 endfunction
 
 " Whether the fzf.vim picker (fzf#run/fzf#wrap) is available. exists('*fzf#run')
-" is false until the fzf autoload script has been sourced, so also look for its
-" autoload file on the runtimepath -- calling fzf#run then autoloads it.
+" is false until the fzf autoload script has been sourced, so also accept the
+" eagerly-defined :FZF command as proof fzf is installed, or its autoload file on
+" the runtimepath -- either way, calling fzf#run then autoloads it.
 function! s:HasFzf() abort
-    return exists('*fzf#run') || !empty(globpath(&runtimepath, 'autoload/fzf.vim'))
+    return exists('*fzf#run') || exists(':FZF') == 2
+        \ || !empty(globpath(&runtimepath, 'autoload/fzf.vim'))
 endfunction
 
 " Search the symbols in the current view and jump to the chosen one. Uses fzf
