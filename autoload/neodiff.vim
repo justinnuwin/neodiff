@@ -343,6 +343,9 @@ function! s:OpenSidebar() abort
     nnoremap <buffer> <silent> <CR> :call <SID>Select()<CR>
     nnoremap <buffer> <silent> o :call <SID>Select()<CR>
     nnoremap <buffer> <silent> <LeftRelease> :call <SID>Select()<CR>
+    " zR/zM mirror the diff panes' open-all/close-all folds, applied to the tree.
+    nnoremap <buffer> <silent> zR :call <SID>SidebarFoldAll(0)<CR>
+    nnoremap <buffer> <silent> zM :call <SID>SidebarFoldAll(1)<CR>
 
     call s:Render()
     call win_gotoid(l:content_win)
@@ -624,6 +627,20 @@ endfunction
 
 " Toggle a directory, or jump to (reopening if needed) the file under the
 " cursor.
+" Expand every directory (a:closed = 0) or collapse every directory
+" (a:closed = 1) in the sidebar tree, then redraw. Bound to zR/zM so
+" open-all/close-all folds uses the same keys here as in the diff panes (the
+" sidebar has no real folds -- it is a custom collapse set). Must run with the
+" sidebar as the current window, which its buffer-local mappings guarantee.
+function! s:SidebarFoldAll(closed) abort
+    let s:collapsed = {}
+    if a:closed
+        call s:CollapseAll(s:tree)
+        call s:CollapseAll(s:pinned_tree)
+    endif
+    call s:Rebuild()
+endfunction
+
 function! s:Select() abort
     let l:linenr = line('.')
     if !has_key(s:line_to_node, l:linenr)
@@ -650,6 +667,7 @@ function! s:ShowHelp() abort
     echo join([
         \ 'neodiff keys:',
         \ '  [c  ]c    previous / next hunk',
+        \ '  zR  zM    open / close all folds (diff pane) or the tree (sidebar)',
         \ '  gt  gT    previous / next file',
         \ '  C-h C-l   focus pane left / right',
         \ '  C-b       toggle the sidebar',

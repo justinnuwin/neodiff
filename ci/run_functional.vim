@@ -218,6 +218,25 @@ function! Test_directory_toggle() abort
     call Assert(NdFindLine('a\.c$') > 0, 'toggle: children visible after expand')
 endfunction
 
+" zM collapses every directory in the sidebar tree; zR expands them all.
+function! Test_sidebar_fold_all() abort
+    let l:entries = [
+        \ NdDiffEntry('src/util/log.c', '', 'M'),
+        \ NdDiffEntry('src/app.c', '', 'M'),
+        \ NdDiffEntry('doc/readme.md', '', 'M')]
+    call NdSetupCase('Folds', l:entries, [])
+    call NdFocusFiletype(1)
+    call Assert(NdFindLine('log\.c$') > 0, 'fold-all: leaves start visible')
+
+    execute 'normal zM'
+    call Assert(NdFindLine('log\.c$') < 0, 'fold-all: leaves hidden after zM')
+    call Assert(NdFindLine('+ src/') > 0, 'fold-all: dirs collapsed after zM')
+
+    execute 'normal zR'
+    call Assert(NdFindLine('log\.c$') > 0, 'fold-all: leaves visible after zR')
+    call Assert(NdFindLine('- src/') > 0, 'fold-all: dirs expanded after zR')
+endfunction
+
 " Selecting a file jumps to the tab already showing its diff.
 function! Test_select_to_tab() abort
     let l:entries = [
@@ -407,6 +426,7 @@ let s:cases = [
     \ 'Test_collapse_threshold_collapsed',
     \ 'Test_collapse_threshold_expanded',
     \ 'Test_directory_toggle',
+    \ 'Test_sidebar_fold_all',
     \ 'Test_select_to_tab',
     \ 'Test_reopen_after_close',
     \ 'Test_close_tab_on_quit',

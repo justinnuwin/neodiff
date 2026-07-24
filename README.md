@@ -53,6 +53,7 @@ to re-run -- it refreshes its block in place rather than duplicating it.
 | Search symbols in changed files | `<C-p>` (needs ctags; uses fzf if available) |
 | Close a file's tab | `:q` in a diff pane |
 | Next / prev change in file | `]c` / `[c` (built-in diff) |
+| Open / close all folds (diff pane) or tree (sidebar) | `zR` / `zM` |
 
 Config: `g:neodiff_width` (sidebar width, default 52);
 `g:neodiff_status_symbols` (status glyphs); `NEODIFF_FIND_COPIES=1` (enable

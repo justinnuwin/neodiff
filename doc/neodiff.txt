@@ -30,6 +30,8 @@ Inside the view:                                                *neodiff-keys*
     gt, gT                   next / previous file (visible-tree order)
     :q  (in a diff pane)     close the whole tab
     ]c, [c                   next / previous change (built-in diff)
+    zR, zM                   open / close all folds in a diff pane, or expand /
+                             collapse the whole tree in the sidebar
     <C-l>, <C-h>             focus pane right / left
     <C-b>                    toggle the sidebar (hide for a full-width diff)
     <C-p>                    search symbols in the changed files (needs ctags;
