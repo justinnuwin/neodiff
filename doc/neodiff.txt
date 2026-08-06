@@ -14,7 +14,8 @@ USAGE                                                          *neodiff-usage*
 
 From the shell:
 
-    gshow [rev]              open a commit (default HEAD)
+    gshow [rev]              open a commit (default HEAD); a range (A..B) is
+                             handed to gdiff as a range diff
     gdiff                    open the working-tree diff
     gdiff --staged           open the staged (index vs HEAD) diff
     gdiff <rev>              diff a revision against the working tree

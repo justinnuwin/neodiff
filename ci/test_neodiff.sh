@@ -138,9 +138,10 @@ assert_absent "parse worktree no gedit" "Gedit" "$_ndf_entries"
 # revision, instead of the working-tree diff of that path. Stub the launcher to
 # capture what gdiff would hand to Vim.
 # ------------------------------------------------------------------------------
+_cap_title=""
 _cap_entries=""
 _cap_refresh=""
-_neodiff_launch() { _cap_entries="$3"; _cap_refresh="$4"; }
+_neodiff_launch() { _cap_title="$2"; _cap_entries="$3"; _cap_refresh="$4"; }
 
 gdiff keep.txt
 assert_contains "gdiff pathspec: working-tree rev" "Gvdiffsplit :0:keep.txt" "$_cap_entries"
@@ -177,6 +178,20 @@ assert_eq "gdiff range: no :w refresh" "[]" "$_cap_refresh"
 # from the range call above.
 gdiff HEAD~1
 assert_absent "gdiff non-range: no Diff Commits" "Diff Commits/" "$_cap_entries"
+
+# gshow of a single commit shows that commit; gshow of a range is handed to gdiff
+# (which pins the Diff Commits list), rather than erroring on the range endpoint.
+gshow HEAD
+assert_contains "gshow commit: title" "Git Show HEAD" "$_cap_title"
+assert_contains "gshow commit: pins the commit description" "'label': 'Commit Description'" "$_cap_entries"
+assert_absent "gshow commit: no Diff Commits" "Diff Commits/" "$_cap_entries"
+
+gshow HEAD~2..HEAD
+assert_contains "gshow range: delegates to gdiff (title)" "Git Diff HEAD~2..HEAD" "$_cap_title"
+assert_contains "gshow range: delegates to gdiff (Diff Commits)" "'label': 'Diff Commits/" "$_cap_entries"
+
+gshow 'HEAD~2..'
+assert_contains "gshow open range: delegates to gdiff" "'label': 'Diff Commits/" "$_cap_entries"
 
 cd "$fixture" || exit 1
 

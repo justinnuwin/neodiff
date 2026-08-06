@@ -178,7 +178,9 @@ _neodiff_launch() {
 # gshow - open a commit's diff in Vim, one tab per changed file.
 #
 # Args:
-#   [rev] - the commit to show; defaults to HEAD.
+#   [rev] - the commit to show; defaults to HEAD. A range (A..B / A...B) is a
+#           multi-commit view rather than a single commit, so it is handed off to
+#           gdiff, which renders the range diff plus a pinned list of its commits.
 #
 # Tab 1 shows the commit description, pinned above the tree in the sidebar, and
 # any git notes on the commit follow in a collapsible "Commit Notes" folder, one
@@ -187,6 +189,11 @@ _neodiff_launch() {
 # ------------------------------------------------------------------------------
 gshow() {
     local rev="${1:-HEAD}"
+    # A range endpoint expression is gdiff's job (gshow shows one commit). This
+    # covers `A..B`, `A...B`, and the open-ended `A..` / `..B` forms.
+    case "$rev" in
+        *..*) gdiff "$@"; return ;;
+    esac
     if ! git rev-parse --verify "$rev" >/dev/null 2>&1; then
         echo "Error: Revision '$rev' not found." >&2
         return 1
